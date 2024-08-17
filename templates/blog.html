@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>{{ title }}</title>
+    <!-- <link href="css/style.css" rel="stylesheet"> -->
+<style>
+  body {
+    background-color: #f5dce4;
+  }
+  .italic {
+    font-style: italic;
+  }
+  .bold {
+    font-weight: 700;
+  }
+  .sidenote {
+    float: right;
+  }
+  .article {
+    border-radius: 5px;
+    background-color: #2b144d;
+    color: #f5dce4;
+    padding: 5px;
+    margin-top: 10px;
+  }
+</style>
+  </head>
+  <body>
+  {% for article in articles %}
+    <div class="article">
+      {{ article }}
+    </div>
+  {% endfor %}
+  </body>
+</html>
