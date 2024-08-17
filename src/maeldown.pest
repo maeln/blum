@@ -1,0 +1,18 @@
+char = { ANY }
+
+heading = { "#" ~ (!NEWLINE ~ char)+ ~ NEWLINE }
+
+bold_text   = { "*" ~ (!"*" ~ char)* ~ "*" }
+italic_text = { "/" ~ (!"/" ~ char)* ~ "/" }
+
+link_name = { (!"]" ~ char)* }
+link_url  = { (!")" ~ char)* }
+link      = { "[" ~ link_name ~ "]" ~ "(" ~ link_url ~ ")" }
+
+// Adjusted to include inline formatting within text blocks
+text_block = { (!(NEWLINE) ~ (bold_text | italic_text | link | char))+ ~ NEWLINE? }
+
+sidenote = { "|" ~ (!"|" ~ (bold_text | italic_text | link | char))+ ~ "|" ~ NEWLINE? }
+
+// Top rule to start parsing
+document = { SOI ~ (heading | sidenote | text_block | NEWLINE)+ ~ EOI }
