@@ -43,10 +43,10 @@ fn generate(token: Pair<Rule>) -> String {
             buf += "</span>";
         }
         Rule::sidenote => {
-            buf += "<div class=\"sidenote\">";
+            buf += "<aside class=\"sidenote\">";
             let tk_lst: Vec<String> = token.into_inner().map(generate).collect();
             buf += &tk_lst.join("");
-            buf += "</div>";
+            buf += "</aside>";
         }
         Rule::link => {
             let mut inner = token.into_inner();

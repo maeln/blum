@@ -28,10 +28,12 @@
 </style>
   </head>
   <body>
-  {% for article in articles %}
-    <div class="article">
+    <header>HEADER</header>
+    {% for article in articles %}
+    <article class="article">
       {{ article }}
-    </div>
-  {% endfor %}
+    </article>
+    {% endfor %}
+    <footer>FOOTER</footer>
   </body>
 </html>
