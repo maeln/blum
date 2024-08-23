@@ -1,7 +1,12 @@
-# A title
+template=blog.html
+date=2024-08-23
+title=Hello
+----
 
-A test with *bold stuff* and also /italics text/.
-And add to this a [link](https://maeln.com).
+# A Different title ! 
+
+A lot of vlabv aflksdk nfgklsdnf sl;dmf .
+
 
 |We also got *sidenote* here!|
 

@@ -1,5 +1,7 @@
 char = { ANY }
 
+separator = { "----" ~ NEWLINE }
+
 heading = { "#" ~ (!NEWLINE ~ char)+ ~ NEWLINE }
 
 bold_text   = { "*" ~ (!"*" ~ char)* ~ "*" }
@@ -14,5 +16,15 @@ text_block = { (!(NEWLINE) ~ (bold_text | italic_text | link | char))+ ~ NEWLINE
 
 sidenote = { "|" ~ (!"|" ~ (bold_text | italic_text | link | char))+ ~ "|" ~ NEWLINE? }
 
+// The article part of the file
+article = { (heading | sidenote | text_block | NEWLINE)+ }
+
+// The metadata part of the file
+key = { (!"=" ~ char)+ }
+value = { (!NEWLINE ~ char)+ }
+property = { key ~ "=" ~ value }
+metadata = { (property ~ NEWLINE)* }
+
+
 // Top rule to start parsing
-document = { SOI ~ (heading | sidenote | text_block | NEWLINE)+ ~ EOI }
+document = { SOI ~ (metadata ~ separator)? ~ article ~ EOI }

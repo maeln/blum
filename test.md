@@ -1,3 +1,7 @@
+template=blog.html
+title=Yolo
+date=2024-08-23
+----
 # A title
 
 A test with *bold stuff* and also /italics text/.
