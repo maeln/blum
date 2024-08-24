@@ -28,12 +28,10 @@
 </style>
   </head>
   <body>
-    <header>HEADER</header>
-    {% for article in articles %}
+    <header>HEADER {{ date }}</header>
     <article class="article">
-      {{ article }}
+      {{ content | safe }}
     </article>
-    {% endfor %}
     <footer>FOOTER</footer>
   </body>
 </html>

@@ -1,17 +1,26 @@
 use std::collections::HashMap;
 use std::env;
 use std::fs;
+use std::fs::File;
+use std::fs::OpenOptions;
+use std::io;
+use std::io::BufReader;
+use std::io::BufWriter;
+use std::io::{Read, Write};
+use std::path::Path;
+use std::path::PathBuf;
 
-use minijinja::{context, Environment};
+use minijinja::Environment;
 
 use pest::{iterators::Pair, Parser};
 use pest_derive::Parser;
 use walkdir::WalkDir;
 
+use regex::Regex;
+
 #[derive(Parser)]
 #[grammar = "maeldown.pest"]
 pub struct MDParser;
-
 
 pub struct Page {
     pub metadata: HashMap<String, String>,
@@ -95,8 +104,8 @@ fn parse_metadata(token: Pair<Rule>, meta: &mut HashMap<String, String>) {
         let key = inner.next().unwrap().as_str().to_string();
         let value = inner.next().unwrap().as_str().to_string();
         meta.insert(key, value);
-    }  
-} 
+    }
+}
 
 fn parse_file(path: &str) -> Page {
     let unparsed_file = fs::read_to_string(path).expect("Could not read file");
@@ -104,42 +113,84 @@ fn parse_file(path: &str) -> Page {
         .expect("could not parse")
         .next()
         .unwrap();
-    
+
     let mut page = Page::empty();
     let root = parsed.into_inner();
     for token in root {
         match token.as_rule() {
-            Rule::EOI => {},
+            Rule::EOI => {}
             Rule::article => {
                 for art in token.into_inner() {
                     page.content += &parse_content(art);
                 }
-            },
+            }
             Rule::metadata => {
                 parse_metadata(token, &mut page.metadata);
             }
-            _ => {},
+            _ => {}
         }
     }
     page
+}
+
+fn buf_read(path: &Path) -> Result<String, std::io::Error> {
+    let file = File::open(path)?;
+    let metadata = file.metadata()?;
+    let length = metadata.len();
+    let mut buf: Vec<u8> = Vec::with_capacity(length as usize);
+    let mut rdr = BufReader::new(file);
+    rdr.read_to_end(&mut buf)?;
+    String::from_utf8(buf).map_err(|e| io::Error::new(io::ErrorKind::Other, e.to_string()))
+}
+
+fn write_string_to_file(path: &Path, data: &str) -> io::Result<()> {
+    let file = OpenOptions::new()
+        .write(true)
+        .create(true)
+        .truncate(true)
+        .open(path)?;
+    let mut writer = BufWriter::new(file);
+    writer.write_all(data.as_bytes())?;
+    Ok(())
 }
 
 fn main() {
     let args: Vec<String> = env::args().collect();
 
     if args.len() < 3 {
-        println!("not enough argument: <template file> <article directory>");
+        println!("not enough argument: <templates directory> <pages directory>");
         return;
     }
 
-    // Load template
-    let template_str = fs::read_to_string(&args[1]).expect("Could not read template file.");
-    let mut env = Environment::new();
-    env.add_template("base", &template_str).unwrap();
-    let template = env.get_template("base").unwrap();
+    let mut jinja = Environment::new();
 
-    // Parse all the articles
-    let mut articles: Vec<String> = Vec::new();
+    // Crawl and register all the templates
+    let mut templates: HashMap<String, String> = HashMap::new();
+    for entry in WalkDir::new(&args[1]).follow_links(true) {
+        match entry {
+            Ok(entry) => {
+                let path = entry.path();
+                if !path.is_file() {
+                    continue;
+                }
+                let filename = path.file_name().unwrap().to_str().unwrap().to_string();
+                templates.insert(
+                    filename.clone(),
+                    buf_read(path).expect("Could not read template file."),
+                );
+            }
+            Err(e) => println!("Error while crawling tempalate directory: {}", e),
+        }
+    }
+
+    for (fname, content) in templates.iter() {
+        jinja
+            .add_template(fname, content)
+            .expect("Could not register template!");
+    }
+
+    // Parse all the pages
+    let mut pages: HashMap<String, Page> = HashMap::new();
     for entry in WalkDir::new(&args[2]).follow_links(true) {
         let entry = entry.unwrap();
         let path = entry.path();
@@ -150,12 +201,33 @@ fn main() {
                 continue;
             }
             let parsed = parse_file(path.to_str().unwrap());
-            articles.push(parsed.content);
-            println!("META: {:?}", parsed.metadata);
+            let filename = path.file_name().unwrap().to_str().unwrap().to_string();
+            pages.insert(filename, parsed);
         }
     }
 
-    // Render everything
-    // TODO: Add metadata to maeldown and sort article by date.
-    println!("{}", template.render(context! { title => "Wololo", articles => articles }).unwrap());
+    // Render all the pages
+    // TODO: handle duplicates file name.
+
+    let fext_re = Regex::new(r".*\.(.+)$").unwrap();
+    fs::create_dir("./render");
+    for (fname, page) in pages.iter() {
+        let template_name = page.metadata.get("template").expect( "Page metadata does not contain a template file.");
+        let tmpl = jinja.get_template(template_name).expect("Could not find the right template");
+        let recap = fext_re
+            .captures(&template_name)
+            .expect("Failed to parse template name");
+        let fext = recap.get(1).expect("Could not find template extendion").as_str();
+
+        let mut ctx = page.metadata.clone();
+        ctx.insert("content".to_string(), page.content.clone());
+
+        let mut path = PathBuf::new();
+        path.push(".");
+        path.push("render");
+        path.push(format!("{}.{}", fname, fext).to_string());
+    
+        let rendered = tmpl.render(ctx).expect("Failed to render.");
+        write_string_to_file(&path, &rendered).expect("Failed to write rendered template.");
+    }
 }
