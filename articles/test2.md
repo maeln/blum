@@ -1,6 +1,7 @@
 template=blog.html
 date=2024-08-23
 title=Todfgd sd sd
+type=page
 ----
 # A title
 

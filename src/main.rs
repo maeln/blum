@@ -10,6 +10,7 @@ use std::io::{Read, Write};
 use std::path::Path;
 use std::path::PathBuf;
 
+use minijinja::context;
 use minijinja::Environment;
 
 use pest::{iterators::Pair, Parser};
@@ -206,18 +207,23 @@ fn main() {
         }
     }
 
-    // Render all the pages
-    // TODO: handle duplicates file name.
-
+    // Computing all the rendered file path and add every page metadata
+    // and their path available to all template.
     let fext_re = Regex::new(r".*\.(.+)$").unwrap();
-    fs::create_dir("./render");
-    for (fname, page) in pages.iter() {
-        let template_name = page.metadata.get("template").expect( "Page metadata does not contain a template file.");
-        let tmpl = jinja.get_template(template_name).expect("Could not find the right template");
-        let recap = fext_re
+    let mut pages_meta: Vec<HashMap<String,String>> = Vec::new();
+    for (fname, page) in pages.iter_mut() {
+        let template_name = page
+            .metadata
+            .get("template")
+            .expect("Page metadata does not contain a template file.");
+
+        let template_ext_cap = fext_re
             .captures(&template_name)
             .expect("Failed to parse template name");
-        let fext = recap.get(1).expect("Could not find template extendion").as_str();
+        let template_ext = template_ext_cap
+            .get(1)
+            .expect("Could not find template extendion")
+            .as_str();
 
         let mut ctx = page.metadata.clone();
         ctx.insert("content".to_string(), page.content.clone());
@@ -225,9 +231,39 @@ fn main() {
         let mut path = PathBuf::new();
         path.push(".");
         path.push("render");
-        path.push(format!("{}.{}", fname, fext).to_string());
-    
-        let rendered = tmpl.render(ctx).expect("Failed to render.");
+        path.push(format!("{}.{}", fname, template_ext).to_string());
+        let str_path = path.to_str().unwrap().to_string();
+
+        page.metadata.insert("path".to_string(), str_path);
+        pages_meta.push(page.metadata.clone());
+    }
+
+    // Render all the pages
+    // TODO: handle duplicates file name.
+
+    match fs::create_dir("./render") {
+        Ok(()) => {}
+        Err(e) => {
+            if e.kind() != io::ErrorKind::AlreadyExists {
+                println!("Error while creating directory {}", e)
+            }
+        }
+    };
+
+    for (_, page) in pages.iter() {
+        let template_name = page
+            .metadata
+            .get("template")
+            .expect("Page metadata does not contain a template file.");
+        let tmpl = jinja
+            .get_template(template_name)
+            .expect("Could not find the right template");
+
+        let mut ctx = page.metadata.clone();
+        ctx.insert("content".to_string(), page.content.clone());
+
+        let path = PathBuf::from(ctx.get("path").unwrap());
+        let rendered = tmpl.render(context! { page => ctx, global => pages_meta }).expect("Failed to render.");
         write_string_to_file(&path, &rendered).expect("Failed to write rendered template.");
     }
 }

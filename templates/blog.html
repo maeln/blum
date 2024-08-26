@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>{{ title }}</title>
+    <title>{{ page.title }}</title>
     <!-- <link href="css/style.css" rel="stylesheet"> -->
 <style>
   body {
@@ -28,9 +28,13 @@
 </style>
   </head>
   <body>
-    <header>HEADER {{ date }}</header>
+    <div>TOC:</div>
+    {% for gm in global %}
+      <a href="{{ gm.path | safe }}">{{ gm.title }} - {{ gm.type }}</a>
+    {% endfor %}
+    <header>HEADER {{ page.date }}</header>
     <article class="article">
-      {{ content | safe }}
+      {{ page.content | safe }}
     </article>
     <footer>FOOTER</footer>
   </body>
