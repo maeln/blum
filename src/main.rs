@@ -233,13 +233,8 @@ fn main() {
         let mut ctx = page.metadata.clone();
         ctx.insert("content".to_string(), page.content.clone());
 
-        let mut path = PathBuf::new();
-        path.push(".");
-        path.push("render");
-        path.push(format!("{}.{}", page_base_filename, template_ext).to_string());
-        let str_path = path.to_str().unwrap().to_string();
-
-        page.metadata.insert("path".to_string(), str_path);
+        let final_path = format!("{}.{}", page_base_filename, template_ext).to_string();
+        page.metadata.insert("path".to_string(), final_path);
         pages_meta.push(page.metadata.clone());
     }
 
@@ -267,7 +262,10 @@ fn main() {
         let mut ctx = page.metadata.clone();
         ctx.insert("content".to_string(), page.content.clone());
 
-        let path = PathBuf::from(ctx.get("path").unwrap());
+        let mut path = PathBuf::new();
+        path.push( ".");
+        path.push("render");
+        path.push(ctx.get("path").unwrap());
         let rendered = tmpl.render(context! { page => ctx, global => pages_meta }).expect("Failed to render.");
         write_string_to_file(&path, &rendered).expect("Failed to write rendered template.");
     }
