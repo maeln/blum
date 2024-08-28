@@ -10,15 +10,21 @@
 
 <body>
   <canvas id="c" class="vizu"></canvas>
-  <div>TOC:</div>
-  {% for gm in global %}
-  <a href="{{ gm.path | safe }}">{{ gm.title }} - {{ gm.type }}</a>
-  {% endfor %}
-  <header>HEADER {{ page.date }}</header>
-  <article class="article">
-    {{ page.content | safe }}
-  </article>
-  <footer>FOOTER</footer>
+  <div id="container">
+    <header>
+      HEADER {{ page.date }}
+      <nav>
+        <div>TOC:</div>
+        {% for gm in global %}
+        <a href="{{ gm.path | safe }}">{{ gm.title }} - {{ gm.type }}</a>
+        {% endfor %}
+      </nav>
+    </header>
+    <article class="article">
+      {{ page.content | safe }}
+    </article>
+    <footer>FOOTER</footer>
+  </div>
 
   <script id="sierp-fs" type="glsl">
       precision mediump float;
