@@ -22,6 +22,16 @@
     </header>
     <article class="article">
       {{ page.content | safe }}
+      <h1>Articles:</h1>
+      <nav>
+        <ul>
+          {% for gm in global|sort(attribute="date", reverse=true) %}
+          {% if gm.type == "blog" %}
+            <li><a href="{{ gm.path | safe }}">[{{ gm.date }}] {{ gm.title }}</a></li>
+          {% endif %}
+          {% endfor %}
+        </ul>
+      </nav>
     </article>
     <footer>FOOTER</footer>
   </div>

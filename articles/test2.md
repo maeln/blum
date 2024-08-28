@@ -1,7 +1,7 @@
 template=blog.html
-date=2024-08-23
+date=2024-06-20
 title=Todfgd sd sd
-type=page
+type=blog
 ----
 # A title
 
