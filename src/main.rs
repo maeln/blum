@@ -209,7 +209,7 @@ fn main() {
 
     // Computing all the rendered file path and add every page metadata
     // and their path available to all template.
-    let fext_re = Regex::new(r".*\.(.+)$").unwrap();
+    let fext_re = Regex::new(r"(.*)\.(.+)$").unwrap();
     let mut pages_meta: Vec<HashMap<String,String>> = Vec::new();
     for (fname, page) in pages.iter_mut() {
         let template_name = page
@@ -217,13 +217,18 @@ fn main() {
             .get("template")
             .expect("Page metadata does not contain a template file.");
 
+        // Get the template extension.
         let template_ext_cap = fext_re
             .captures(&template_name)
             .expect("Failed to parse template name");
         let template_ext = template_ext_cap
-            .get(1)
-            .expect("Could not find template extendion")
+            .get(2)
+            .expect("Could not find template extension")
             .as_str();
+
+        // Get the page base filename (no ext)
+        let page_cap = fext_re.captures(fname).expect("Failed to parse page base file name.");
+        let page_base_filename = page_cap.get(1).expect("Could not find the page base name.").as_str();
 
         let mut ctx = page.metadata.clone();
         ctx.insert("content".to_string(), page.content.clone());
@@ -231,7 +236,7 @@ fn main() {
         let mut path = PathBuf::new();
         path.push(".");
         path.push("render");
-        path.push(format!("{}.{}", fname, template_ext).to_string());
+        path.push(format!("{}.{}", page_base_filename, template_ext).to_string());
         let str_path = path.to_str().unwrap().to_string();
 
         page.metadata.insert("path".to_string(), str_path);
