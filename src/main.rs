@@ -155,6 +155,15 @@ fn write_string_to_file(path: &Path, data: &str) -> io::Result<()> {
     Ok(())
 }
 
+// Return a tuple with the basename and the extension
+fn parse_filename(filename: &String) -> (&str, &str) {
+    let fext_re = Regex::new(r"(.*)\.(.+)$").unwrap();
+    let captures = fext_re.captures(filename).unwrap();
+    let basename = captures.get(1).unwrap().as_str();
+    let ext = captures.get(2).unwrap().as_str();
+    (basename, ext)
+}
+
 fn main() {
     let args: Vec<String> = env::args().collect();
 
@@ -209,8 +218,7 @@ fn main() {
 
     // Computing all the rendered file path and add every page metadata
     // and their path available to all template.
-    let fext_re = Regex::new(r"(.*)\.(.+)$").unwrap();
-    let mut pages_meta: Vec<HashMap<String,String>> = Vec::new();
+    let mut pages_meta: Vec<HashMap<String, String>> = Vec::new();
     for (fname, page) in pages.iter_mut() {
         let template_name = page
             .metadata
@@ -218,17 +226,10 @@ fn main() {
             .expect("Page metadata does not contain a template file.");
 
         // Get the template extension.
-        let template_ext_cap = fext_re
-            .captures(&template_name)
-            .expect("Failed to parse template name");
-        let template_ext = template_ext_cap
-            .get(2)
-            .expect("Could not find template extension")
-            .as_str();
+        let (_, template_ext) = parse_filename(template_name);
 
         // Get the page base filename (no ext)
-        let page_cap = fext_re.captures(fname).expect("Failed to parse page base file name.");
-        let page_base_filename = page_cap.get(1).expect("Could not find the page base name.").as_str();
+        let (page_base_filename, _) = parse_filename(fname);
 
         let mut ctx = page.metadata.clone();
         ctx.insert("content".to_string(), page.content.clone());
@@ -263,10 +264,12 @@ fn main() {
         ctx.insert("content".to_string(), page.content.clone());
 
         let mut path = PathBuf::new();
-        path.push( ".");
+        path.push(".");
         path.push("render");
         path.push(ctx.get("path").unwrap());
-        let rendered = tmpl.render(context! { page => ctx, global => pages_meta }).expect("Failed to render.");
+        let rendered = tmpl
+            .render(context! { page => ctx, global => pages_meta })
+            .expect("Failed to render.");
         write_string_to_file(&path, &rendered).expect("Failed to write rendered template.");
     }
 }
