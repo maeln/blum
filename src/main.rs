@@ -56,6 +56,12 @@ fn parse_content(token: Pair<Rule>) -> String {
             buf += &tk_lst.join("");
             buf += "</p>";
         }
+        Rule::code_block => {
+            buf += "<pre>";
+            let tk_lst: Vec<String> = token.into_inner().map(parse_content).collect();
+            buf += &tk_lst.join("");
+            buf += "</pre>";
+        }
         Rule::bold_text => {
             buf += "<span class=\"bold\">";
             let tk_lst: Vec<String> = token.into_inner().map(parse_content).collect();
@@ -134,6 +140,7 @@ fn parse_file(path: &str) -> Page {
     page
 }
 
+// Read a file fully with a buffered reader.
 fn buf_read(path: &Path) -> Result<String, std::io::Error> {
     let file = File::open(path)?;
     let metadata = file.metadata()?;
@@ -144,6 +151,8 @@ fn buf_read(path: &Path) -> Result<String, std::io::Error> {
     String::from_utf8(buf).map_err(|e| io::Error::new(io::ErrorKind::Other, e.to_string()))
 }
 
+// Write a string in a file, creating it if it does not exist
+// and replacing it if it does. Use a bufwriter for perf.
 fn write_string_to_file(path: &Path, data: &str) -> io::Result<()> {
     let file = OpenOptions::new()
         .write(true)
@@ -152,6 +161,20 @@ fn write_string_to_file(path: &Path, data: &str) -> io::Result<()> {
         .open(path)?;
     let mut writer = BufWriter::new(file);
     writer.write_all(data.as_bytes())?;
+    Ok(())
+}
+
+// Copy all the file from a directory to another.
+// Both directory should already exist.
+fn copy_files_dir(source_dir: &Path, target_dir: &Path) -> io::Result<()> {
+    for entry in fs::read_dir(source_dir)? {
+        let path = entry?.path();
+        if path.is_file() {
+            let mut dest_path = PathBuf::from(target_dir);
+            dest_path.push(path.file_name().unwrap());
+            fs::copy(&path, &dest_path)?;
+        }
+    }
     Ok(())
 }
 
@@ -167,16 +190,32 @@ fn parse_filename(filename: &String) -> (&str, &str) {
 fn main() {
     let args: Vec<String> = env::args().collect();
 
-    if args.len() < 3 {
-        println!("not enough argument: <templates directory> <pages directory>");
-        return;
+    if let Some(a) = args.get(1) {
+        if a == "help" {
+            println!("USAGES: <templates directory> <pages directory> <static file directory>");
+            return;
+        }
     }
+
+    let templates_dir = args
+        .get(1)
+        .map(|e| e.clone())
+        .unwrap_or("templates".to_string());
+    let pages_dir = args
+        .get(2)
+        .map(|e| e.clone())
+        .unwrap_or("pages".to_string());
+    let static_dir = PathBuf::from(
+        args.get(3)
+            .map(|e| e.clone())
+            .unwrap_or("static".to_string()),
+    );
 
     let mut jinja = Environment::new();
 
     // Crawl and register all the templates
     let mut templates: HashMap<String, String> = HashMap::new();
-    for entry in WalkDir::new(&args[1]).follow_links(true) {
+    for entry in WalkDir::new(&templates_dir).follow_links(true) {
         match entry {
             Ok(entry) => {
                 let path = entry.path();
@@ -201,7 +240,7 @@ fn main() {
 
     // Parse all the pages
     let mut pages: HashMap<String, Page> = HashMap::new();
-    for entry in WalkDir::new(&args[2]).follow_links(true) {
+    for entry in WalkDir::new(&pages_dir).follow_links(true) {
         let entry = entry.unwrap();
         let path = entry.path();
         if path.is_file() && path.extension().and_then(|s| s.to_str()) == Some("md") {
@@ -220,10 +259,12 @@ fn main() {
     // and their path available to all template.
     let mut pages_meta: Vec<HashMap<String, String>> = Vec::new();
     for (fname, page) in pages.iter_mut() {
-        let template_name = page
-            .metadata
-            .get("template")
-            .expect("Page metadata does not contain a template file.");
+        println!("page {}, metadata: {:?}", fname, page.metadata);
+        let errmsg = format!(
+            "Page ({}) metadata does not contain a template file.",
+            fname
+        );
+        let template_name = page.metadata.get("template").expect(&errmsg);
 
         // Get the template extension.
         let (_, template_ext) = parse_filename(template_name);
@@ -241,8 +282,11 @@ fn main() {
 
     // Render all the pages
     // TODO: handle duplicates file name.
+    let mut render_dir_path = PathBuf::new();
+    render_dir_path.push(".");
+    render_dir_path.push("render");
 
-    match fs::create_dir("./render") {
+    match fs::create_dir(&render_dir_path) {
         Ok(()) => {}
         Err(e) => {
             if e.kind() != io::ErrorKind::AlreadyExists {
@@ -263,13 +307,14 @@ fn main() {
         let mut ctx = page.metadata.clone();
         ctx.insert("content".to_string(), page.content.clone());
 
-        let mut path = PathBuf::new();
-        path.push(".");
-        path.push("render");
+        let mut path = render_dir_path.clone();
         path.push(ctx.get("path").unwrap());
         let rendered = tmpl
             .render(context! { page => ctx, global => pages_meta })
             .expect("Failed to render.");
         write_string_to_file(&path, &rendered).expect("Failed to write rendered template.");
     }
+
+    // Copy all the static files
+    copy_files_dir(&static_dir, &render_dir_path).expect("Failed to copy static files.");
 }
