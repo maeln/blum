@@ -14,11 +14,12 @@ link      = { "[" ~ link_name ~ "]" ~ "(" ~ link_url ~ ")" }
 // Adjusted to include inline formatting within text blocks
 text_block = { (!(NEWLINE) ~ (bold_text | italic_text | link | char))+ ~ NEWLINE? }
 code_block = { ">>>" ~ NEWLINE ~ (!">>>" ~ (char | NEWLINE))+ ~ ">>>" ~ NEWLINE? }
+raw_block = { "<<<" ~ NEWLINE ~ (!"<<<" ~ (char | NEWLINE))+ ~ "<<<" ~ NEWLINE ? }
 
-sidenote = { "|" ~ (!"|" ~ (code_block | bold_text | italic_text | link | char))+ ~ "|" ~ NEWLINE? }
+sidenote = { "|" ~ (!"|" ~ (code_block | raw_block | bold_text | italic_text | link | char))+ ~ "|" ~ NEWLINE? }
 
 // The article part of the file
-article = { (heading | sidenote | code_block | text_block | NEWLINE)+ }
+article = { (heading | sidenote | code_block | raw_block | text_block | NEWLINE)+ }
 
 // The metadata part of the file
 key = { (!("=" | NEWLINE) ~ char)+ }

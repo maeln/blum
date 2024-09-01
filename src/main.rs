@@ -62,6 +62,10 @@ fn parse_content(token: Pair<Rule>) -> String {
             buf += &tk_lst.join("");
             buf += "</pre>";
         }
+        Rule::raw_block => {
+            let raw = token.as_str();
+            buf += &raw[4..raw.len().saturating_sub(4)];
+        }
         Rule::bold_text => {
             buf += "<span class=\"bold\">";
             let tk_lst: Vec<String> = token.into_inner().map(parse_content).collect();
