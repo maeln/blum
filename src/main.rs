@@ -48,7 +48,17 @@ fn parse_content(token: Pair<Rule>) -> String {
             buf += "</h1>";
         }
         Rule::char => {
-            buf += token.as_str();
+            let c = token.as_str();
+            // Escape html chars
+            if c == "<" {
+                buf += "&lt;";
+            } else if c == ">" {
+                buf += "&gt;";
+            } else if c == "&" {
+                buf += "&amp;";
+            } else {
+                buf += c;
+            }
         }
         Rule::text_block => {
             buf += "<p>";
